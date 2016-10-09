@@ -12,30 +12,14 @@ import (
 	"time"
 )
 
-var mySigningKey = []byte("My Secret")
+//128 random chars
+var mySigningKey = []byte("M6qOdsDc_xSDfg9esYxjA5MaARJAMPl1btKk_924lVNVh9Kw9MREuulNDq_7eT4e")
 
 func main() {
 
 	StartServer()
 
 }
-
-var GetTokenHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	claims := jwt.StandardClaims{
-		Subject:   "Handy",
-		Audience:  "Wohnung",
-		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-	}
-
-	/* Create the token */
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	/* Sign the token with our secret */
-	tokenString, _ := token.SignedString(mySigningKey)
-
-	/* Finally, write the token to the browser window */
-	w.Write([]byte(tokenString))
-})
 
 func StartServer() {
 	r := mux.NewRouter()
@@ -48,13 +32,13 @@ func StartServer() {
 		UserProperty:  "token",
 	})
 
-	r.HandleFunc("/ping", PingHandler)
-	r.Handle("/secured/ping", negroni.New(
+	r.Handle("/open", negroni.New(
 		negroni.HandlerFunc(jwtMiddleware.HandlerWithNext),
 		negroni.Wrap(http.HandlerFunc(SecuredPingHandler)),
 	))
-	r.Handle("/token", GetTokenHandler)
+
 	http.Handle("/", r)
+	fmt.Println("serving secured endpoints under http://localhost:3001/open")
 	http.ListenAndServe(":3001", nil)
 }
 
@@ -73,10 +57,6 @@ func respondJson(text string, w http.ResponseWriter) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResponse)
-}
-
-func PingHandler(w http.ResponseWriter, r *http.Request) {
-	respondJson("All good. You don't need to be authenticated to call this", w)
 }
 
 func SecuredPingHandler(w http.ResponseWriter, r *http.Request) {
