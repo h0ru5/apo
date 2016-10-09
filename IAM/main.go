@@ -38,7 +38,6 @@ func main() {
 }
 
 func Secret(user, _ string) string {
-	//TODO config this
 	if passwords, err := htpasswd.ParseHtpasswdFile(filepath); err == nil {
 		if pw, ok := passwords[user]; ok {
 			return pw

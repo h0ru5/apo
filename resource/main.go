@@ -34,7 +34,7 @@ func StartServer() {
 
 	r.Handle("/open", negroni.New(
 		negroni.HandlerFunc(jwtMiddleware.HandlerWithNext),
-		negroni.Wrap(http.HandlerFunc(SecuredPingHandler)),
+		negroni.Wrap(http.HandlerFunc(OpenHandler)),
 	))
 
 	http.Handle("/", r)
@@ -59,9 +59,15 @@ func respondJson(text string, w http.ResponseWriter) {
 	w.Write(jsonResponse)
 }
 
-func SecuredPingHandler(w http.ResponseWriter, r *http.Request) {
+func OpenHandler(w http.ResponseWriter, r *http.Request) {
 	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
-	msg := fmt.Sprintf("You are authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"],
-		time.Since(time.Unix(int64(claims["exp"].(float64)), 0)))
+	expires := time.Since(time.Unix(int64(claims["exp"].(float64)), 0))
+
+	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
+
+	fmt.Println(msg)
+
+	// do your action
+
 	respondJson(msg, w)
 }
