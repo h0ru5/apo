@@ -12,32 +12,45 @@ import (
 	"time"
 )
 
-//128 random chars
-var mySigningKey = []byte("M6qOdsDc_xSDfg9esYxjA5MaARJAMPl1btKk_924lVNVh9Kw9MREuulNDq_7eT4e")
-var filepath = "./passes"
-
-func main() {
+func SetupConfig() {
+	// defaults
 	viper.SetDefault("endpoint", ":3000")
 	viper.SetDefault("passfile", "./passes")
-	viper.SetConfigName("iam-conf")
+	viper.SetDefault("key", "secret key please change this")
 
+	// set names and expected directories
+	viper.SetConfigName("iam-conf")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("$HOME/.iam")
 
+	// config via environment
 	viper.SetEnvPrefix("iam")
 	viper.BindEnv("passfile")
 	viper.BindEnv("endpoint")
 
+	// posix flags
 	pflag.StringP("endpoint", "e", ":3000", "endpoint to run the IAM (default ':3000')")
 	pflag.StringP("passfile", "f", "./passes", "htpasswd file to operate on")
-
-	viper.BindPFlag("port", pflag.Lookup("port"))
+	pflag.StringP("key", "k", "secret", "key for HS256 signature")
+	viper.BindPFlag("endpoint", pflag.Lookup("endpoint"))
 	viper.BindPFlag("passfile", pflag.Lookup("passfile"))
+	viper.BindPFlag("key", pflag.Lookup("key"))
 
+	//read in
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Println("No configuration file loaded - using defaults")
+	}
+}
+
+func main() {
+	SetupConfig()
 	StartServer()
 }
 
 func Secret(user, _ string) string {
+	filepath := viper.GetString("passfile")
+
 	if passwords, err := htpasswd.ParseHtpasswdFile(filepath); err == nil {
 		if pw, ok := passwords[user]; ok {
 			return pw
@@ -53,6 +66,8 @@ func Secret(user, _ string) string {
 }
 
 var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+	mySigningKey := []byte(viper.GetString("key"))
+
 	claims := jwt.StandardClaims{
 		Subject:   r.Username,
 		Audience:  "Wohnung",
@@ -70,7 +85,7 @@ var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, 
 })
 
 func StartServer() {
-	filepath = viper.GetString("passfile")
+	filepath := viper.GetString("passfile")
 	endpoint := viper.GetString("endpoint")
 
 	r := mux.NewRouter()

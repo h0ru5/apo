@@ -8,25 +8,43 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"net/http"
 	"time"
 )
 
-//128 random chars
-var mySigningKey = []byte("M6qOdsDc_xSDfg9esYxjA5MaARJAMPl1btKk_924lVNVh9Kw9MREuulNDq_7eT4e")
+func SetupConfig() {
+	// defaults
+	viper.SetDefault("key", "secret key please change this")
+
+	// conf name & locations
+	viper.SetConfigName("iam-conf")
+	viper.AddConfigPath(".")
+
+	// posix flags
+	pflag.StringP("key", "k", "secret", "key for HS256 signature")
+	viper.BindPFlag("key", pflag.Lookup("key"))
+
+	// reading config
+	err := viper.ReadInConfig()
+	if err != nil {
+		fmt.Println("No configuration file loaded - using defaults")
+	}
+}
 
 func main() {
-
+	SetupConfig()
 	StartServer()
-
 }
 
 func StartServer() {
 	r := mux.NewRouter()
+	myKey := []byte(viper.GetString("key"))
 
 	jwtMiddleware := jwtmiddleware.New(jwtmiddleware.Options{
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-			return mySigningKey, nil
+			return myKey, nil
 		},
 		SigningMethod: jwt.SigningMethodHS256,
 		UserProperty:  "token",
@@ -38,17 +56,16 @@ func StartServer() {
 	))
 
 	http.Handle("/", r)
-	fmt.Println("serving secured endpoints under http://localhost:3001/open")
+	fmt.Println("serving secured endpoint under http://localhost:3001/open")
 	http.ListenAndServe(":3001", nil)
 }
 
-type Response struct {
-	Text string `json:"text"`
+func respondJsonText(text string, w http.ResponseWriter) {
+	resp := map[string]interface{}{"text": text}
+	respondJson(resp, w)
 }
 
-func respondJson(text string, w http.ResponseWriter) {
-	response := Response{text}
-
+func respondJson(response map[string]interface{}, w http.ResponseWriter) {
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -69,5 +86,5 @@ func OpenHandler(w http.ResponseWriter, r *http.Request) {
 
 	// do your action
 
-	respondJson(msg, w)
+	respondJsonText(msg, w)
 }
