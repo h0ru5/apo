@@ -55,6 +55,15 @@ func StartServer() {
 		negroni.Wrap(http.HandlerFunc(OpenHandler)),
 	))
 
+	r.Handle("/close", negroni.New(
+		negroni.HandlerFunc(jwtMiddleware.HandlerWithNext),
+		negroni.Wrap(http.HandlerFunc(CloseHandler)),
+	))
+
+	r.Handle("/", negroni.New(
+		negroni.Wrap(http.HandlerFunc(RootHandler)),
+	))
+
 	http.Handle("/", r)
 	fmt.Println("serving secured endpoint under http://localhost:3001/open")
 	http.ListenAndServe(":3001", nil)
@@ -84,7 +93,36 @@ func OpenHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(msg)
 
-	// do your action
+	msg = msg + " - opening"
 
 	respondJsonText(msg, w)
+}
+
+func CloseHandler(w http.ResponseWriter, r *http.Request) {
+	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
+	expires := time.Since(time.Unix(int64(claims["exp"].(float64)), 0))
+
+	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
+
+	fmt.Println(msg)
+
+	msg = msg + " - closing"
+
+	respondJsonText(msg, w)
+}
+
+func RootHandler(w http.ResponseWriter, r *http.Request) {
+	links := map[string]interface{}{
+		"links" : []Link{
+			Link{"action","open","POST"},
+			Link{"action","close","POST"},
+		},
+	}
+	respondJson(links,w)
+}
+
+type Link struct {
+	Rel string
+	Href string
+	Method string
 }
