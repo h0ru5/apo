@@ -1,16 +1,24 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"github.com/abbot/go-http-auth"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/foomo/htpasswd"
 	"github.com/gorilla/mux"
+	"github.com/mendsley/gojwk"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"net/http"
 	"time"
 )
+
+var mySigningKey *ecdsa.PrivateKey
+
+var jwk []byte
 
 func SetupConfig() {
 	// defaults
@@ -46,9 +54,20 @@ func SetupConfig() {
 func main() {
 	SetupConfig()
 	StartServer()
+	//GenNewKeyPair()
 }
 
-func Secret(user, _ string) string {
+/**
+ * generates an ECDSA keypair
+ */
+func GenNewKeyPair() {
+	mySigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pubKey, _ := gojwk.PublicKey(mySigningKey.Public())
+	jwk, _ = gojwk.Marshal(pubKey)
+	print("using Key:", string(jwk))
+}
+
+func basicAuthorize(user, _ string) string {
 	filepath := viper.GetString("passfile")
 
 	if passwords, err := htpasswd.ParseHtpasswdFile(filepath); err == nil {
@@ -66,7 +85,7 @@ func Secret(user, _ string) string {
 }
 
 var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
-	mySigningKey := []byte(viper.GetString("key"))
+	//mySigningKey := []byte(viper.GetString("key"))
 
 	claims := jwt.StandardClaims{
 		Subject:   r.Username,
@@ -75,7 +94,7 @@ var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, 
 	}
 
 	/* Create the token */
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 
 	/* Sign the token with our secret */
 	tokenString, _ := token.SignedString(mySigningKey)
@@ -88,9 +107,14 @@ func StartServer() {
 	filepath := viper.GetString("passfile")
 	endpoint := viper.GetString("endpoint")
 
+	GenNewKeyPair()
+
 	r := mux.NewRouter()
-	authenticator := auth.NewBasicAuthenticator("Wohnung", Secret)
+	authenticator := auth.NewBasicAuthenticator("Wohnung", basicAuthorize)
 	r.Handle("/token", authenticator.Wrap(GetTokenHandler))
+	r.HandleFunc("/key", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(jwk))
+	})
 	http.Handle("/", r)
 	fmt.Println("IAM serving tokens under http://", endpoint, "/token using passfile ", filepath)
 	http.ListenAndServe(endpoint, nil)

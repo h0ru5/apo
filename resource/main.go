@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto"
 	"encoding/json"
 	"fmt"
 	"github.com/auth0/go-jwt-middleware"
@@ -8,8 +9,10 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+	"github.com/mendsley/gojwk"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -38,15 +41,34 @@ func main() {
 	StartServer()
 }
 
+func GetKey(uri string) (crypto.PublicKey, error) {
+	resp, err := http.Get(uri)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	jwk, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("using key: ", string(jwk))
+	jwkObj, err := gojwk.Unmarshal(jwk)
+	if err != nil {
+		return nil, err
+	}
+	return jwkObj.DecodePublicKey()
+}
+
 func StartServer() {
 	r := mux.NewRouter()
-	myKey := []byte(viper.GetString("key"))
+	//myKey := []byte(viper.GetString("key"))
+	myKey, _ := GetKey("http://localhost:3000/key")
 
 	jwtMiddleware := jwtmiddleware.New(jwtmiddleware.Options{
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 			return myKey, nil
 		},
-		SigningMethod: jwt.SigningMethodHS256,
+		SigningMethod: jwt.SigningMethodES256,
 		UserProperty:  "token",
 	})
 
@@ -113,16 +135,16 @@ func CloseHandler(w http.ResponseWriter, r *http.Request) {
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
 	links := map[string]interface{}{
-		"links" : []Link{
-			Link{"action","open","POST"},
-			Link{"action","close","POST"},
+		"links": []Link{
+			{"action", "open", "POST"},
+			{"action", "close", "POST"},
 		},
 	}
-	respondJson(links,w)
+	respondJson(links, w)
 }
 
 type Link struct {
-	Rel string
-	Href string
+	Rel    string
+	Href   string
 	Method string
 }
