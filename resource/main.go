@@ -19,14 +19,14 @@ import (
 
 func SetupConfig() {
 	// defaults
-	viper.SetDefault("key", "secret key please change this")
+	viper.SetDefault("key", "http://localhost:3000/key")
 
 	// conf name & locations
 	viper.SetConfigName("iam-conf")
 	viper.AddConfigPath(".")
 
 	// posix flags
-	pflag.StringP("key", "k", "secret", "key for HS256 signature")
+	pflag.StringP("key", "k", "http://localhost:3000/key", "iam endpoint for signing key")
 	viper.BindPFlag("key", pflag.Lookup("key"))
 
 	// reading config
@@ -42,6 +42,7 @@ func main() {
 }
 
 func GetKey(uri string) (crypto.PublicKey, error) {
+	fmt.Println("aquiring key from ", uri)
 	resp, err := http.Get(uri)
 	if err != nil {
 		return nil, err
@@ -61,8 +62,11 @@ func GetKey(uri string) (crypto.PublicKey, error) {
 
 func StartServer() {
 	r := mux.NewRouter()
-	//myKey := []byte(viper.GetString("key"))
-	myKey, _ := GetKey("http://localhost:3000/key")
+	keyEndpoint := viper.GetString("key")
+	myKey, err := GetKey(keyEndpoint)
+	if err != nil {
+		panic(err)
+	}
 
 	jwtMiddleware := jwtmiddleware.New(jwtmiddleware.Options{
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
@@ -109,7 +113,7 @@ func respondJson(response map[string]interface{}, w http.ResponseWriter) {
 
 func OpenHandler(w http.ResponseWriter, r *http.Request) {
 	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
-	expires := time.Since(time.Unix(int64(claims["exp"].(float64)), 0))
+	expires := time.Until(time.Unix(int64(claims["exp"].(float64)), 0))
 
 	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
 
@@ -122,7 +126,7 @@ func OpenHandler(w http.ResponseWriter, r *http.Request) {
 
 func CloseHandler(w http.ResponseWriter, r *http.Request) {
 	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
-	expires := time.Since(time.Unix(int64(claims["exp"].(float64)), 0))
+	expires := time.Until(time.Unix(int64(claims["exp"].(float64)), 0))
 
 	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
 
@@ -133,7 +137,7 @@ func CloseHandler(w http.ResponseWriter, r *http.Request) {
 	respondJsonText(msg, w)
 }
 
-func RootHandler(w http.ResponseWriter, r *http.Request) {
+func RootHandler(w http.ResponseWriter, _ *http.Request) {
 	links := map[string]interface{}{
 		"links": []Link{
 			{"action", "open", "POST"},

@@ -17,14 +17,13 @@ import (
 )
 
 var mySigningKey *ecdsa.PrivateKey
-
 var jwk []byte
 
 func SetupConfig() {
 	// defaults
+	viper.SetDefault("audience", "myhome")
 	viper.SetDefault("endpoint", ":3000")
 	viper.SetDefault("passfile", "./passes")
-	viper.SetDefault("key", "secret key please change this")
 
 	// set names and expected directories
 	viper.SetConfigName("iam-conf")
@@ -35,14 +34,15 @@ func SetupConfig() {
 	viper.SetEnvPrefix("iam")
 	viper.BindEnv("passfile")
 	viper.BindEnv("endpoint")
+	viper.BindEnv("audience")
 
 	// posix flags
 	pflag.StringP("endpoint", "e", ":3000", "endpoint to run the IAM (default ':3000')")
 	pflag.StringP("passfile", "f", "./passes", "htpasswd file to operate on")
-	pflag.StringP("key", "k", "secret", "key for HS256 signature")
+	pflag.StringP("audience", "a", "myhome", "audience/realm that gets protected")
 	viper.BindPFlag("endpoint", pflag.Lookup("endpoint"))
 	viper.BindPFlag("passfile", pflag.Lookup("passfile"))
-	viper.BindPFlag("key", pflag.Lookup("key"))
+	viper.BindPFlag("audience", pflag.Lookup("audience"))
 
 	//read in
 	err := viper.ReadInConfig()
@@ -54,7 +54,6 @@ func SetupConfig() {
 func main() {
 	SetupConfig()
 	StartServer()
-	//GenNewKeyPair()
 }
 
 /**
@@ -64,7 +63,7 @@ func GenNewKeyPair() {
 	mySigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pubKey, _ := gojwk.PublicKey(mySigningKey.Public())
 	jwk, _ = gojwk.Marshal(pubKey)
-	print("using Key:", string(jwk))
+	fmt.Println("using Key:", string(jwk))
 }
 
 func basicAuthorize(user, _ string) string {
@@ -85,11 +84,10 @@ func basicAuthorize(user, _ string) string {
 }
 
 var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
-	//mySigningKey := []byte(viper.GetString("key"))
 
 	claims := jwt.StandardClaims{
 		Subject:   r.Username,
-		Audience:  "Wohnung",
+		Audience:  viper.GetString("audience"),
 		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 	}
 
@@ -99,23 +97,24 @@ var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, 
 	/* Sign the token with our secret */
 	tokenString, _ := token.SignedString(mySigningKey)
 
-	/* Finally, write the token to the browser window */
+	/* Finally, write the token to the request */
 	w.Write([]byte(tokenString))
 })
 
 func StartServer() {
 	filepath := viper.GetString("passfile")
 	endpoint := viper.GetString("endpoint")
+	audience := viper.GetString("audience")
 
 	GenNewKeyPair()
 
 	r := mux.NewRouter()
-	authenticator := auth.NewBasicAuthenticator("Wohnung", basicAuthorize)
+	authenticator := auth.NewBasicAuthenticator(audience, basicAuthorize)
 	r.Handle("/token", authenticator.Wrap(GetTokenHandler))
 	r.HandleFunc("/key", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(jwk))
 	})
 	http.Handle("/", r)
-	fmt.Println("IAM serving tokens under http://", endpoint, "/token using passfile ", filepath)
-	http.ListenAndServe(endpoint, nil)
+	fmt.Printf("IAM is serving tokens under http://%s/token for %s using passfile %s\n", endpoint, audience, filepath)
+	panic(http.ListenAndServe(endpoint, nil))
 }
