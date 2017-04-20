@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/abbot/go-http-auth"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/foomo/htpasswd"
@@ -63,7 +64,7 @@ func GenNewKeyPair() {
 	mySigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pubKey, _ := gojwk.PublicKey(mySigningKey.Public())
 	jwk, _ = gojwk.Marshal(pubKey)
-	fmt.Println("using Key:", string(jwk))
+	log.WithField("key", string(jwk)).Info("generated new Keypair")
 }
 
 func basicAuthorize(user, _ string) string {
@@ -73,10 +74,10 @@ func basicAuthorize(user, _ string) string {
 		if pw, ok := passwords[user]; ok {
 			return pw
 		} else {
-			fmt.Printf("user %s not found\n", user)
+			log.WithField("user", user).Warn("invalid login attempt")
 		}
 	} else {
-		fmt.Println("Error getting users: ", err)
+		log.WithError(err).Error("could not access users backend")
 	}
 
 	// they expect an empty string... seems a bit weak to me
@@ -99,6 +100,11 @@ var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, 
 
 	/* Finally, write the token to the request */
 	w.Write([]byte(tokenString))
+
+	log.WithFields(log.Fields{
+		"user":     r.Username,
+		"clientIp": r.RemoteAddr,
+	}).Info("issued new token")
 })
 
 func StartServer() {
@@ -115,6 +121,11 @@ func StartServer() {
 		w.Write([]byte(jwk))
 	})
 	http.Handle("/", r)
-	fmt.Printf("IAM is serving tokens under http://%s/token for %s using passfile %s\n", endpoint, audience, filepath)
+	log.WithFields(log.Fields{
+		"endpoint":   "http://" + endpoint + "/token",
+		"audience":   audience,
+		"passwdfile": filepath,
+	}).Info("started IAM")
+	//fmt.Printf("IAM is serving tokens under http://%s/token for %s using passfile %s\n", endpoint, audience, filepath)
 	panic(http.ListenAndServe(endpoint, nil))
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"crypto"
 	"encoding/json"
-	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/codegangsta/negroni"
 	"github.com/dgrijalva/jwt-go"
@@ -32,7 +32,7 @@ func SetupConfig() {
 	// reading config
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Println("No configuration file loaded - using defaults")
+		log.Warn("No config loaded - reverting to defaults")
 	}
 }
 
@@ -42,7 +42,8 @@ func main() {
 }
 
 func GetKey(uri string) (crypto.PublicKey, error) {
-	fmt.Println("aquiring key from ", uri)
+	log.WithField("uri", uri).Debug("acquiring key")
+
 	resp, err := http.Get(uri)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,8 @@ func GetKey(uri string) (crypto.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("using key: ", string(jwk))
+
+	log.WithField("key", string(jwk)).Debug("loaded key")
 	jwkObj, err := gojwk.Unmarshal(jwk)
 	if err != nil {
 		return nil, err
@@ -74,6 +76,13 @@ func StartServer() {
 		},
 		SigningMethod: jwt.SigningMethodES256,
 		UserProperty:  "token",
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err string) {
+			log.WithFields(log.Fields{
+				"ip":    r.RemoteAddr,
+				"error": err,
+			}).Error("authentification failure")
+			jwtmiddleware.OnError(w, r, err)
+		},
 	})
 
 	r.Handle("/open", negroni.New(
@@ -91,13 +100,8 @@ func StartServer() {
 	))
 
 	http.Handle("/", r)
-	fmt.Println("serving secured endpoint under http://localhost:3001/open")
-	http.ListenAndServe(":3001", nil)
-}
-
-func respondJsonText(text string, w http.ResponseWriter) {
-	resp := map[string]interface{}{"text": text}
-	respondJson(resp, w)
+	log.WithField("endpoint", "http://:3001/").Info("started server")
+	log.Fatal(http.ListenAndServe(":3001", nil))
 }
 
 func respondJson(response map[string]interface{}, w http.ResponseWriter) {
@@ -115,26 +119,42 @@ func OpenHandler(w http.ResponseWriter, r *http.Request) {
 	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
 	expires := time.Until(time.Unix(int64(claims["exp"].(float64)), 0))
 
-	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
+	log.WithFields(log.Fields{
+		"sub":    claims["sub"],
+		"aud":    claims["aud"],
+		"exp":    expires,
+		"ip":     r.RemoteAddr,
+		"action": "open",
+	}).Warn("opening door")
 
-	fmt.Println(msg)
-
-	msg = msg + " - opening"
-
-	respondJsonText(msg, w)
+	respondJson(map[string]interface{}{
+		"sub":    claims["sub"],
+		"aud":    claims["aud"],
+		"exp":    expires,
+		"ip":     r.RemoteAddr,
+		"action": "open",
+	}, w)
 }
 
 func CloseHandler(w http.ResponseWriter, r *http.Request) {
 	claims := context.Get(r, "token").(*jwt.Token).Claims.(jwt.MapClaims)
 	expires := time.Until(time.Unix(int64(claims["exp"].(float64)), 0))
 
-	msg := fmt.Sprintf("Authenticated as: %v for %v, expires in %v", claims["sub"], claims["aud"], expires)
+	log.WithFields(log.Fields{
+		"sub":    claims["sub"],
+		"aud":    claims["aud"],
+		"exp":    expires,
+		"ip":     r.RemoteAddr,
+		"action": "close",
+	}).Warn("closing door")
 
-	fmt.Println(msg)
-
-	msg = msg + " - closing"
-
-	respondJsonText(msg, w)
+	respondJson(map[string]interface{}{
+		"sub":    claims["sub"],
+		"aud":    claims["aud"],
+		"exp":    expires,
+		"ip":     r.RemoteAddr,
+		"action": "close",
+	}, w)
 }
 
 func RootHandler(w http.ResponseWriter, _ *http.Request) {
