@@ -160,15 +160,14 @@ func CloseHandler(w http.ResponseWriter, r *http.Request) {
 func RootHandler(w http.ResponseWriter, _ *http.Request) {
 	links := map[string]interface{}{
 		"links": []Link{
-			{"action", "open", "POST"},
-			{"action", "close", "POST"},
+			{"action", "/open"},
+			{"action", "/close"},
 		},
 	}
 	respondJson(links, w)
 }
 
 type Link struct {
-	Rel    string
-	Href   string
-	Method string
+	Rel  string `json:"rel"`
+	Href string `json:"href"`
 }
