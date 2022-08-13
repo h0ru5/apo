@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/auth0/go-jwt-middleware v1.0.1
 	github.com/codegangsta/negroni v1.0.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/form3tech-oss/jwt-go v3.2.2+incompatible
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.8.0
 	github.com/mendsley/gojwk v0.0.0-20141217222730-4d5ec6e58103
@@ -15,7 +15,6 @@ require (
 )
 
 require (
-	github.com/form3tech-oss/jwt-go v3.2.2+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect

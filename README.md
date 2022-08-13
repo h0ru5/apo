@@ -43,8 +43,8 @@ defaults to `"myhome"`
 ```
 	"github.com/Sirupsen/logrus"
 	"github.com/abbot/go-http-auth"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/foomo/htpasswd"
+	"github.com/form3tech-oss/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/mendsley/gojwk"
 	"github.com/spf13/pflag"
@@ -55,8 +55,8 @@ defaults to `"myhome"`
 ```
 github.com/Sirupsen/logrus          MIT License
 github.com/abbot/go-http-auth       Apache License 2.0 (95%)
-github.com/dgrijalva/jwt-go         MIT License (98%)
 github.com/foomo/htpasswd           MIT License
+github.com/form3tech-oss/jwt-go        MIT License (98%)
 github.com/fsnotify/fsnotify        BSD 3-clause "New" or "Revised" License (96%)
 github.com/gorilla/mux              BSD 3-clause "New" or "Revised" License (96%)
 github.com/h0ru5/hmauth/IAM         MIT License (98%)

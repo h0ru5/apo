@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/abbot/go-http-auth"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/foomo/htpasswd"
+	"github.com/form3tech-oss/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/mendsley/gojwk"
 	log "github.com/sirupsen/logrus"
@@ -88,7 +88,7 @@ var GetTokenHandler = auth.AuthenticatedHandlerFunc(func(w http.ResponseWriter, 
 
 	claims := jwt.StandardClaims{
 		Subject:   r.Username,
-		Audience:  viper.GetString("audience"),
+		Audience:  []string{viper.GetString("audience")},
 		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
 	}
 

@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/abbot/go-http-auth v0.4.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/foomo/htpasswd v0.0.0-20200116085101-e3a90e78da9c
+	github.com/form3tech-oss/jwt-go v3.2.5+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/mendsley/gojwk v0.0.0-20141217222730-4d5ec6e58103
 	github.com/sirupsen/logrus v1.9.0
