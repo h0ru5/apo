@@ -14,7 +14,7 @@
 
 package main
 
-import "github.com/h0ru5/hmauth/manageentries/cmd"
+import "github.com/h0ru5/apo/manageentries/cmd"
 
 func main() {
 	cmd.Execute()
