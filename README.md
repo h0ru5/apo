@@ -56,7 +56,7 @@ defaults to `"myhome"`
 github.com/Sirupsen/logrus          MIT License
 github.com/abbot/go-http-auth       Apache License 2.0 (95%)
 github.com/foomo/htpasswd           MIT License
-github.com/form3tech-oss/jwt-go        MIT License (98%)
+github.com/form3tech-oss/jwt-go     MIT License (98%)
 github.com/fsnotify/fsnotify        BSD 3-clause "New" or "Revised" License (96%)
 github.com/gorilla/mux              BSD 3-clause "New" or "Revised" License (96%)
 github.com/h0ru5/hmauth/IAM         MIT License (98%)
